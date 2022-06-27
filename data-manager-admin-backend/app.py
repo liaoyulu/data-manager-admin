@@ -1,40 +1,48 @@
+from re import X
+from tkinter import Y
 from unittest import result
 from flask import Flask, request, jsonify
 from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///jtl.db'
 
 db = SQLAlchemy(app)
 api = Api(app)
 
-# RESTFUL API
 
 
+#### RESTFUL API
 class NoticeApi(Resource):
     def get(self, notice_id):
-        notice = Notice.query.filter_by(noticeId=notice_id).first()
-        result = {
-            'noticeId': notice.noticeId,
-            'noticeTitle': notice.noticeTitle,
-            'noticeContent': notice.noticeContent,            
-        }
-        return jsonify(result)
+        notice = Notice.query.filter_by(noticeId=notice_id)
+        listResult = []
+        for i in notice:
+            result = {
+                'noticeId': i.noticeId,
+                'noticeTitle': i.noticeTitle,
+                'noticeContent': i.noticeContent,
+            }
+            listResult.append(result)
+        return jsonify(listResult)
 
     def put(self, notice_id):
         notice = Notice.query.filter_by(noticeId=notice_id).first()
         if notice is None:
             notice = Notice(
-                noticeTitle = request.form['noticeTitle'],
-                noticeContent=request.form['noticeContent'],                
+                noticeTitle = request.json['noticeTitle'],
+                noticeContent=request.json['noticeContent'],                
             )
             db.session.add(notice)
             db.session.commit()
             return f'add {notice.noticeId} {notice.noticeTitle} success'
         else:
-            notice.noticeTitle = request.form['noticeTitle']
-            notice.noticeContent = request.form['noticeContent']
+            notice.noticeTitle = request.json['noticeTitle']
+            notice.noticeContent = request.json['noticeContent']
             db.session.commit()
             return f'update {notice.noticeId} {notice.noticeTitle} success'            
 
@@ -49,17 +57,42 @@ class NoticeApi(Resource):
 
 api.add_resource(NoticeApi, '/api/notice/<int:notice_id>')
 
-class StuffApi(Resource):
-    def get(self, stuff_id):
-        stuff = Stuff.query.filter_by(stuffId=stuff_id).first()
+class Test(Resource):
+    def post(self):
+        x = request.json['x']
+        y = request.json['y']
         result = {
-            'stuffId': stuff.stuffId,
-            'userName': stuff.userName, 
-            'stuffName': stuff.stuffName,
-            'sex': stuff.sex,
-            'birthDate': stuff.birthDate,    
+            'X': x,
+            'Y': y,
+            'sum': x+y,
         }
         return jsonify(result)
+api.add_resource(Test, '/api/test')
+        
+
+class StuffApi(Resource):
+    def get(self, stuff_id):
+        stuff = Stuff.query.filter_by(stuffId=stuff_id)
+        # result = {
+        #     'stuffId': stuff.stuffId,
+        #     'userName': stuff.userName, 
+        #     'stuffName': stuff.stuffName,
+        #     'sex': stuff.sex,
+        #     'birthDate': stuff.birthDate,    
+        # }
+        listResult = []
+        if stuff is not None:
+            for i in stuff:
+                result = {
+                        'stuffId': i.stuffId,
+                        'userName': i.userName,  
+                        'stuffName': i.stuffName,
+                        'sex': i.sex,
+                        'birthDate': i.birthDate,    
+                    }
+                listResult.append(result)
+            return jsonify(listResult)
+        # return jsonify(result)
 
     def put(self, stuff_id):
         stuff = Stuff.query.filter_by(stuffId=stuff_id).first()
@@ -92,17 +125,51 @@ class StuffApi(Resource):
 
 api.add_resource(StuffApi, '/api/stuff/<int:stuff_id>')
 
+# class SearchApi(Resource):
+#     def get(self, search_method):
+#         if search_method == 'Notice':
+#             if request.form['searchField'] == 'noticeId':
+#                 notice = Notice.query.filter_by(noticeId=request.form['searchValue']).all()
+#             elif request.form['searchField'] == 'noticeTitle':
+#                 notice = Notice.query.filter(
+#                     Notice.noticeTitle.like("%" + request.form['searchValue'] + "%") if request.form['searchValue'] is not None else ""
+#                     ).all()
+#             else:
+#                 return f"not this field {request.form['searchField']}"
+#             if notice is not None:
+#                 listResult = []
+#                 for i in notice:
+#                     result = {
+#                         'noticeId': i.noticeId,
+#                         'noticeTitle': i.noticeTitle,
+#                         'noticeContent': i.noticeContent,
+#                     }
+#                     listResult.append(result)
+#                 return jsonify(listResult)
+#             else:
+#                 return 'None'
+#         elif search_method == 'Stuff':
+#             stuff = Stuff.query.filter_by(stuffName=request.form['searchValue']).all()
+#             listResult = []
+#             if stuff is not None:
+#                 for i in stuff:
+#                     result = {
+#                         'stuffId': i.stuffId,
+#                         'userName': i.userName,  
+#                         'stuffName': i.stuffName,
+#                         'sex': i.sex,
+#                         'birthDate': i.birthDate,    
+#                     }
+#                     listResult.append(result)
+#                 return jsonify(listResult)
+                   
+# api.add_resource(SearchApi, '/api/search/<string:search_method>')
 class SearchApi(Resource):
-    def get(self, search_method):
+    def get(self, search_method, search_value):
         if search_method == 'Notice':
-            if request.form['searchField'] == 'noticeId':
-                notice = Notice.query.filter_by(noticeId=request.form['searchValue']).all()
-            elif request.form['searchField'] == 'noticeTitle':
-                notice = Notice.query.filter(
-                    Notice.noticeTitle.like("%" + request.form['searchValue'] + "%") if request.form['searchValue'] is not None else ""
-                    ).all()
-            else:
-                return f"not this field {request.form['searchField']}"
+            notice = Notice.query.filter(
+                Notice.noticeTitle.like("%" + search_value + "%") if search_value is not None else ""
+                ).all()
             if notice is not None:
                 listResult = []
                 for i in notice:
@@ -116,24 +183,20 @@ class SearchApi(Resource):
             else:
                 return 'None'
         elif search_method == 'Stuff':
-            stuff = Stuff.query.filter_by(stuffName=request.form['searchValue']).all()
-            stuffcount =Stuff.query.filter_by(stuffName=request.form['searchValue']).count()
-            print(stuffcount)
+            stuff = Stuff.query.filter_by(stuffName=search_value).all()
             listResult = []
             if stuff is not None:
                 for i in stuff:
                     result = {
                         'stuffId': i.stuffId,
-                        'userfName': i.userName,  
+                        'userName': i.userName,  
                         'stuffName': i.stuffName,
                         'sex': i.sex,
                         'birthDate': i.birthDate,    
                     }
                     listResult.append(result)
                 return jsonify(listResult)
-                   
-api.add_resource(SearchApi, '/api/search/<string:search_method>')
-
+api.add_resource(SearchApi, '/api/search/<string:search_method>/<string:search_value>')
 # SQLAlchemy Model
 class Notice(db.Model):
     noticeId = db.Column(db.Integer, primary_key=True)
