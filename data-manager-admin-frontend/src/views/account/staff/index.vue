@@ -1,18 +1,13 @@
-<template>
+data-manager-admin<template>
   <div class="container">
     <Breadcrumb :items="['menu.account', 'menu.account.staff']" />
     <a-card>
       <a-row :gutter="24" class="action-panel" justify="start">
         <a-col :span="8">
-          <a-input
-            v-model="inputStuff"
-            :style="{ width: '500px' }"
-            placeholder="输入姓名查询"
-            allow-clear
-          />
+          <a-input v-model="searchName" placeholder="输入姓名查询" allow-clear />
         </a-col>
         <a-col :span="4">
-          <a-button @click="searchStuff">
+          <a-button @click="searchStaff">
             <template #icon>
               <icon-search />
             </template>
@@ -21,22 +16,16 @@
         </a-col>
       </a-row>
       <a-divider></a-divider>
-      <a-table :data="data" style="margin-top: 30px">
+      <a-table :data="staffTableData" style="margin-top: 30px">
         <template #columns>
-          <a-table-column
-            title="员工序号"
-            data-index="stuffId"
-          ></a-table-column>
-          <a-table-column title="用户名" data-index="userName"></a-table-column>
-          <a-table-column title="姓名" data-index="stuffName"></a-table-column>
-          <a-table-column title="性别" data-index="sex"></a-table-column>
-          <a-table-column
-            title="出生年月"
-            data-index="birthDate"
-          ></a-table-column>
+          <a-table-column title="员工序号" data-index="staffId"></a-table-column>
+          <a-table-column title="用户名" data-index="staffUserName"></a-table-column>
+          <a-table-column title="姓名" data-index="staffName"></a-table-column>
+          <a-table-column title="性别" data-index="staffSex"></a-table-column>
+          <a-table-column title="出生年月" data-index="staffBirthDate"></a-table-column>
           <a-table-column title="操作">
             <template #cell="{ record }">
-              <a-button type="text" size="small" @click="deleteStuff(record)">
+              <a-button type="text" size="small" @click="deleteStaff(record)">
                 删除
               </a-button>
             </template>
@@ -48,123 +37,128 @@
 </template>
 
 <script lang="ts" setup>
-import { dataTool, number } from 'echarts/core';
-import { ref, reactive } from 'vue';
-import { QuillEditor } from '@vueup/vue-quill';
-import '@vueup/vue-quill/dist/vue-quill.snow.css';
-import { forEach } from 'lodash';
+  import { ref, reactive } from 'vue';
+  import '@vueup/vue-quill/dist/vue-quill.snow.css';
+  import { Message } from '@arco-design/web-vue';
 
-const columns = [
-  {
-    title: '序号',
-    dataIndex: 'stuffId',
-  },
-  {
-    title: '用户名',
-    dataIndex: 'userName',
-  },
-  {
-    title: '姓名',
-    dataIndex: 'stuffName',
-  },
-  {
-    title: '性别',
-    dataIndex: 'sex',
-  },
-  {
-    title: '出生年月',
-    dataIndex: 'birthDate',
-  },
-  {
-    title: '操作',
-    slotname: 'operation',
-  },
-];
+  // 变量声明区块 START ======= 
+  
+  // 后台请求 URL
+  const API_URL = 'http://127.0.0.1:5000/api';
 
-const data = reactive([
-  {
-    stuffId: 1,
-    userName: 'yoooo',
-    stuffName: '刘玉茹',
-    sex: '女',
-    birthDate: '1988.7.8',
-  },
-  {
-    stuffId: 2,
-    userName: 'yoo0o',
-    stuffName: '李志伟',
-    sex: '男',
-    birthDate: '1988.7.9',
-  },
-  {
-    stuffId: 3,
-    userName: 'yoooo',
-    stuffName: '黄蝉兰',
-    sex: '女',
-    birthDate: '1990.7.8',
-  },
-]);
+  // 搜索变量
+  const searchName = ref('');
 
-const stuffForm = reactive({
-  stuffId: 0,
-  userName: '',
-  stuffName: '',
-  sex: '',
-  birthDate: '',
-});
-
-const inputStuff = ref('');
-
-const deleteStuff = (e) => {
-  data.forEach((element, index) => {
-    if (e.stuffId === element.stuffId) {
-      fetch(`http://127.0.0.1:5000/api/stuff/${data[index].stuffId}`, {
-        method: 'DELETE',
-        mode: 'cors',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-        .then((response) => response.json())
-        .then((json) => {
-          console.log(json);
-          data.splice(index, 1);
-        })
-        .catch((error) => {
-          console.error('Error:', error);
-        });    
-    }
+  // 对话框表单变量
+  const staffForm = reactive({
+    StaffUserName: '',
+    StaffName: '',
+    StaffSex: '',
+    StaffBirthDate: '',
   });
-  /*
-  for (let i = 0; i <= data.length; i += 1) {
-    if (e.stuffId === data[i].stuffId) {
-      data.splice(i, 1);
-    }
-  }
-  */
-};
 
-const searchStuff = () => {
-  fetch(`http://127.0.0.1:5000/api/search/Stuff/${inputStuff.value}`, {
-    method: 'GET',
-    mode: 'cors',
-    headers: {
-      'Content-Type': 'application/json',
+
+  // 表格表头变量
+  const staffColumns = [
+    {
+      title: '序号',
+      dataIndex: 'staffId',
     },
-  })
+    {
+      title: '用户名',
+      dataIndex: 'staffUserName',
+    },
+    {
+      title: '姓名',
+      dataIndex: 'staffName',
+    },
+    {
+      title: '性别',
+      dataIndex: 'staffSex',
+    },
+    {
+      title: '出生年月',
+      dataIndex: 'staffBirthDate',
+    },
+    {
+      title: '操作',
+      slotname: 'operation',
+    },
+  ];
+  // 表格数据变量
+  const staffTableData = reactive([]);
+
+  // 变量声明区块 END ======= 
+
+  // 方法声明区块 START ======= 
+
+  // 初始化表格数据
+  const loadTableData = () => {
+    fetch(`${API_URL}/staff_list`, {
+      method: 'GET',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
     .then((response) => response.json())
     .then((json) => {
-      console.log(json);
-      console.log(data);
-      data.splice(0, data.length);
+      console.log(json)
+      staffTableData.splice(0, staffTableData.length);
       for (let i = 0; i < json.length; i += 1) {
-        data[i] = json[i];
+        staffTableData[i] = json[i];
       }
     })
     .catch((error) => {
       console.error('Error:', error);
     });
-};
+  };
+
+  const deleteStaff = (record) => {
+    fetch(`${API_URL}/staff/${record.staffId}`, {
+      method: 'DELETE',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((response) => response.json())
+      .then((json) => {
+        Message.info(json);
+        loadTableData();
+      })
+      .catch((error) => {
+        Message.error('Error:', error);
+      });
+  };
+
+  const searchStaff = () => {
+    fetch(`${API_URL}/staff_search_by_name`, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body:JSON.stringify({
+        staffName: searchName,
+      })
+    })
+    .then((response) => response.json())
+    .then((json) => {
+      staffTableData.splice(0, staffTableData.length);
+      for (let i=0; i<json.length; i+=1) {
+        staffTableData[i] = json[i];
+      }
+    })
+    .catch((error) => {
+      Message.error('Error:', error);
+    });
+  };
+  
+  // 方法声明区块 END =======
+
+  // 页面加载时调用方法  ======= 
+  loadTableData();
 </script>
 
 
